@@ -53,7 +53,7 @@ def train():
 
     model.train()
     step = 0
-    for epoch in range(10):
+    for epoch in range(50):
         total_loss = 0.0
         for batch in train_loader:
             src = batch["src"].to(device)  # (B, S_src)
@@ -78,7 +78,13 @@ def train():
         avg_loss = total_loss/len(train_loader)
         print(f"epoch {epoch} | avg loss {avg_loss:.4f}")
         wandb.log({"train/epoch_loss": avg_loss}, step=step)
-        torch.save(model.state_dict(), f"checkpoint_epoch{epoch}.pt")
+        torch.save(model.state_dict(),
+                   f"checkpoints/checkpoint_epoch{epoch}.pt")
+
+        artifact = wandb.Artifact("transformer-checkpoint", type="model")
+        artifact.add_file(f"checkpoints/checkpoint_epoch{epoch}.pt")
+        wandb.log_artifact(artifact)
+
     wandb.finish()
 
 
