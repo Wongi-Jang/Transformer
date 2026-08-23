@@ -39,7 +39,7 @@ def evaluate_bleu(model, test_split, src_tok, tgt_tok, device, src_lang="en", tg
         hyp = translate_sentence(
             model, row[src_lang], src_tok, tgt_tok, device)
         hypotheses.append(hyp)
-        references.append([row[tgt_lang]])
+        references.append(row[tgt_lang])
 
     bleu = sacrebleu.corpus_bleu(hypotheses, [references])
     return bleu.score, hypotheses, references
