@@ -1,10 +1,13 @@
 import math
+from pathlib import Path
+
 import torch
 from torch.utils.data import DataLoader
 from tokenizers import Tokenizer
 from datasets import load_dataset
 
 from src.data.dataset import TranslationDataset, collate_fn, PAD_ID
+from src.data.tokenizer import build_tokenizers
 from src.model.transformer import Transformer
 
 import wandb
@@ -15,9 +18,21 @@ def noam_lr(step, d_model, warmup_steps=4000):
     return (d_model**-0.5)*min(step**-0.5, step*warmup_steps**-1.5)
 
 
+def get_tokenizers(ds, vocab_size=8000, out_dir="tokenizers"):
+    en_path = Path(out_dir) / "en.json"
+    de_path = Path(out_dir) / "de.json"
+
+    if en_path.exists() and de_path.exists():
+        return Tokenizer.from_file(str(en_path)), Tokenizer.from_file(str(de_path))
+
+    return build_tokenizers(ds, vocab_size, out_dir)
+
+
 def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     d_model = 512
+
+    Path("checkpoints").mkdir(exist_ok=True)
 
     wandb.init(
         project="transformer-multi30k",
@@ -33,8 +48,7 @@ def train():
     )
 
     ds = load_dataset("bentrevett/multi30k")
-    en_tok = Tokenizer.from_file("tokenizers/en.json")
-    de_tok = Tokenizer.from_file("tokenizers/de.json")
+    en_tok, de_tok = get_tokenizers(ds)
 
     train_ds = TranslationDataset(ds["train"], en_tok, de_tok)
     train_loader = DataLoader(train_ds, batch_size=64,
