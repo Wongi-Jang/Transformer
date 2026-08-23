@@ -8,3 +8,22 @@ wheels/
 
 # Virtual environments
 .venv
+
+wandb/
+
+# Model checkpoints
+*.pt
+*.pth
+checkpoint_epoch*.pt
+
+# Trained tokenizers (regenerable from data)
+tokenizers/
+
+# HuggingFace datasets cache
+.cache/
+
+# macOS
+.DS_Store
+
+# Secrets / environment variables
+.env
