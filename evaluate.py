@@ -14,12 +14,12 @@ def greedy_decode(model, src, max_len, device):
     model.eval()
     with torch.no_grad():
         memory, src_mask = model.encode(src.to(device))
-        tgt = torch.tensor([SOS_ID], device=device)
+        tgt = torch.tensor([[SOS_ID]], device=device)
         for _ in range(max_len):
             out = model.decode(tgt, memory, src_mask)  # (B, S_tgt, d_model)
             # (B, d_model) -> (B, tgt_vocab_size)
             logits = model.generator(out[:, -1])
-            next_token = logits.armax(dim=-1, keepdim=True)  # (B, 1)
+            next_token = logits.argmax(dim=-1, keepdim=True)  # (B, 1)
             tgt = torch.cat([tgt, next_token], dim=1)  # (B, S_tgt+1)
             if next_token.item() == EOS_ID:
                 break
