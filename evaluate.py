@@ -5,23 +5,20 @@ import sacrebleu
 
 from src.model.transformer import Transformer
 
-SOS_ID = 1
-EOS_ID = 2
 
-
-def greedy_decode(model, src, max_len, device):
+def greedy_decode(model, src, max_len, device,sos_id,eos_id):
     # B=1
     model.eval()
     with torch.no_grad():
         memory, src_mask = model.encode(src.to(device))
-        tgt = torch.tensor([[SOS_ID]], device=device)
+        tgt = torch.tensor([[sos_id]], device=device)
         for _ in range(max_len):
             out = model.decode(tgt, memory, src_mask)  # (B, S_tgt, d_model)
             # (B, d_model) -> (B, tgt_vocab_size)
             logits = model.generator(out[:, -1])
             next_token = logits.argmax(dim=-1, keepdim=True)  # (B, 1)
             tgt = torch.cat([tgt, next_token], dim=1)  # (B, S_tgt+1)
-            if next_token.item() == EOS_ID:
+            if next_token.item() == eos_id:
                 break
     return tgt.squeeze(0).tolist()  # (B,L) -> (L, )
 
@@ -29,7 +26,7 @@ def greedy_decode(model, src, max_len, device):
 def translate_sentence(model, sentence, src_tok, tgt_tok, device, max_len=128):
     src_ids = src_tok.encode(sentence).ids
     src = torch.tensor([src_ids])
-    out_ids = greedy_decode(model, src, max_len, device)
+    out_ids = greedy_decode(model, src, max_len, device,tgt_tok.token_to_id("<sos>"),tgt_tok.token_to_id("<eos>"))
     return tgt_tok.decode(out_ids, skip_special_tokens=True)
 
 
@@ -54,7 +51,7 @@ def main():
 
     model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
                         tgt_vocab_size=de_tok.get_vocab_size(),
-                        d_model=512).to(device)
+                        d_model=512,pad_id=de_tok.token_to_id("<pad>")).to(device)
     model.load_state_dict(torch.load(
         "checkpoints/checkpoint_epoch49.pt", map_location=device))
 

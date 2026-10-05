@@ -20,6 +20,7 @@ def scaled_dot_product_attention(q, k, v, mask=None):
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, num_heads):
         super().__init__()
+        assert d_model % num_heads==0, f"d_model={d_model} not divisible by num_heads={num_heads}"
         self.num_heads = num_heads
         self.d_k = d_model//num_heads
 

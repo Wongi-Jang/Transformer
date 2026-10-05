@@ -5,8 +5,9 @@ import torch
 from torch.utils.data import DataLoader
 from tokenizers import Tokenizer
 from datasets import load_dataset
+from functools import partial
 
-from src.data.dataset import TranslationDataset, collate_fn, PAD_ID
+from src.data.dataset import TranslationDataset, collate_fn
 from src.data.tokenizer import build_tokenizers
 from src.model.transformer import Transformer
 
@@ -49,21 +50,22 @@ def train():
 
     ds = load_dataset("bentrevett/multi30k")
     en_tok, de_tok = get_tokenizers(ds)
-
+    pad_id=de_tok.token_to_id("<pad>")
+    assert en_tok.token_to_id("<pad>")==pad_id
     train_ds = TranslationDataset(ds["train"], en_tok, de_tok)
     train_loader = DataLoader(train_ds, batch_size=64,
-                              shuffle=True, collate_fn=collate_fn)
+                              shuffle=True, collate_fn=partial(collate_fn,pad_id=pad_id))
 
     model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
                         tgt_vocab_size=de_tok.get_vocab_size(),
-                        d_model=d_model).to(device)
+                        d_model=d_model, pad_id=pad_id).to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1.0, betas=(0.9, 0.98), eps=1e-9)
     scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer, lr_lambda=lambda step: noam_lr(step, d_model))
     criterion = torch.nn.CrossEntropyLoss(
-        ignore_index=PAD_ID, label_smoothing=0.1)
+        ignore_index=pad_id, label_smoothing=0.1)
 
     model.train()
     step = 0

@@ -1,9 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 
-PAD_ID = 0
-
-
 class TranslationDataset(Dataset):
     def __init__(self, hf_split, src_tokenizer, tgt_tokenizer, src_lang="en", tgt_lang="de", max_len=128):
         self.data = hf_split
@@ -26,7 +23,7 @@ class TranslationDataset(Dataset):
         return torch.tensor(src_ids), torch.tensor(tgt_ids)
 
 
-def collate_fn(batch, pad_id=PAD_ID):
+def collate_fn(batch, pad_id):
     src_batch, tgt_batch = zip(*batch)
     src_padded = torch.nn.utils.rnn.pad_sequence(
         src_batch, batch_first=True, padding_value=pad_id)
