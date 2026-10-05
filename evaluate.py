@@ -53,7 +53,7 @@ def main():
                         tgt_vocab_size=de_tok.get_vocab_size(),
                         d_model=512,pad_id=de_tok.token_to_id("<pad>")).to(device)
     model.load_state_dict(torch.load(
-        "checkpoints/checkpoint_epoch49.pt", map_location=device))
+        "checkpoints/best_seed0.pt", map_location=device))
 
     score, hyps, refs = evaluate_bleu(
         model, ds["test"], en_tok, de_tok, device)

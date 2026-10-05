@@ -2,6 +2,8 @@ import math
 from pathlib import Path
 
 import torch
+import argparse
+import random
 from torch.utils.data import DataLoader
 from tokenizers import Tokenizer
 from datasets import load_dataset
@@ -28,12 +30,30 @@ def get_tokenizers(ds, vocab_size=8000, out_dir="tokenizers"):
 
     return build_tokenizers(ds, vocab_size, out_dir)
 
+def run_epoch_val(model, loader, criterion, pad_id, device):
+    model.eval()
+    total_loss, total_tokens=0.0, 0
+    with torch.no_grad():
+        for batch in loader:
+            src=batch["src"].to(device)
+            tgt_input=batch["tgt_input"].to(device)
+            tgt_output=batch["tgt_output"].to(device)
+            logits=model(src, tgt_input)
+            loss=criterion(logits.reshape(-1,logits.size(-1)),tgt_output.reshape(-1))
+            n=(tgt_output!=pad_id).sum().item()
+            total_loss+=loss.item()*n
+            total_tokens+=n
+    return total_loss /total_tokens
 
-def train():
+
+def train(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     d_model = 512
 
     Path("checkpoints").mkdir(exist_ok=True)
+    ckpt_path=f"checkpoints/best_seed{seed}.pt"
 
     wandb.init(
         project="transformer-multi30k",
@@ -45,6 +65,7 @@ def train():
             "batch_size": 64,
             "warmup_steps": 4000,
             "label_smoothing": 0.1,
+            "seed":seed
         }
     )
 
@@ -52,9 +73,10 @@ def train():
     en_tok, de_tok = get_tokenizers(ds)
     pad_id=de_tok.token_to_id("<pad>")
     assert en_tok.token_to_id("<pad>")==pad_id
-    train_ds = TranslationDataset(ds["train"], en_tok, de_tok)
-    train_loader = DataLoader(train_ds, batch_size=64,
-                              shuffle=True, collate_fn=partial(collate_fn,pad_id=pad_id))
+    collate=partial(collate_fn, pad_id=pad_id)
+    train_loader = DataLoader(TranslationDataset(ds["train"], en_tok, de_tok), batch_size=64,
+                              shuffle=True, collate_fn=collate, generator=torch.Generator().manual_seed(seed))
+    val_loader=DataLoader(TranslationDataset(ds["validation"],en_tok,de_tok),batch_size=64,collate_fn=collate)
 
     model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
                         tgt_vocab_size=de_tok.get_vocab_size(),
@@ -67,9 +89,10 @@ def train():
     criterion = torch.nn.CrossEntropyLoss(
         ignore_index=pad_id, label_smoothing=0.1)
 
-    model.train()
     step = 0
+    best_val=float("inf")
     for epoch in range(50):
+        model.train()
         total_loss = 0.0
         for batch in train_loader:
             src = batch["src"].to(device)  # (B, S_src)
@@ -82,27 +105,34 @@ def train():
 
             optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            grad_norm=torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
 
             wandb.log({"train/loss": loss.item(),
-                      "train/lr": scheduler.get_last_lr()[0], }, step=step)
+                      "train/lr": scheduler.get_last_lr()[0],
+                      "train/grad_norm":grad_norm.item()}, step=step)
             step += 1
 
             total_loss += loss.item()
         avg_loss = total_loss/len(train_loader)
-        print(f"epoch {epoch} | avg loss {avg_loss:.4f}")
-        wandb.log({"train/epoch_loss": avg_loss}, step=step)
-        torch.save(model.state_dict(),
-                   f"checkpoints/checkpoint_epoch{epoch}.pt")
+        val_loss=run_epoch_val(model, val_loader, criterion, pad_id, device)
+        print(f"epoch {epoch} | train loss {avg_loss:.4f} | val {val_loss:.4f}")
+        wandb.log({"train/epoch_loss": avg_loss, "val/loss":val_loss},step=step)
+        
+        if val_loss < best_val:
+            best_val=val_loss
+            torch.save(model.state_dict(),ckpt_path)
 
-        artifact = wandb.Artifact("transformer-checkpoint", type="model")
-        artifact.add_file(f"checkpoints/checkpoint_epoch{epoch}.pt")
-        wandb.log_artifact(artifact)
+    artifact = wandb.Artifact(f"transformer-seed{seed}", type="model")
+    artifact.add_file(ckpt_path)
+    wandb.log_artifact(artifact)
+    wandb.summary["best_val_loss"]=best_val
 
     wandb.finish()
 
 
 if __name__ == "__main__":
-    train()
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--seed",type=int,default=0)
+    train(parser.parse_args().seed)
