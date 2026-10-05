@@ -8,7 +8,7 @@ from .decoder import Decoder
 
 
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, num_heads=8, d_ff=2048, num_layers=6, dropout=0.1, max_len=5000, pad_id=0):
+    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, num_heads=8, d_ff=2048, num_layers=6, dropout=0.1, max_len=5000, pad_id=0, norm_first=True):
         super().__init__()
         self.d_model = d_model
         self.pad_id = pad_id
@@ -18,8 +18,8 @@ class Transformer(nn.Module):
             tgt_vocab_size, d_model, padding_idx=pad_id)
         self.pos_encoding = PositionalEncoding(d_model, max_len, dropout)
 
-        self.encoder = Encoder(d_model, num_heads, d_ff, num_layers, dropout)
-        self.decoder = Decoder(d_model, num_heads, d_ff, num_layers, dropout)
+        self.encoder = Encoder(d_model, num_heads, d_ff, num_layers, dropout,norm_first)
+        self.decoder = Decoder(d_model, num_heads, d_ff, num_layers, dropout,norm_first)
 
         self.generator = nn.Linear(d_model, tgt_vocab_size)
 

@@ -16,13 +16,16 @@ class FeedForward(nn.Module):
 
 
 class SublayerConnection(nn.Module):
-    def __init__(self, d_model, dropout=0.1):
+    def __init__(self, d_model, dropout=0.1,norm_first=True):
         super().__init__()
         self.norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
+        self.norm_first=norm_first
 
     def forward(self, x, sublayer):
-        return x+self.dropout(sublayer(self.norm(x)))
+        if self.norm_first:
+            return x+self.dropout(sublayer(self.norm(x)))
+        return self.norm(x+self.dropout(sublayer(x)))
 
 
 # ffn = FeedForward(d_model=512, d_ff=2048)

@@ -46,17 +46,20 @@ def run_epoch_val(model, loader, criterion, pad_id, device):
     return total_loss /total_tokens
 
 
-def train(seed):
+def train(seed, post_ln):
     random.seed(seed)
     torch.manual_seed(seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     d_model = 512
 
+    variant="post" if post_ln else "pre"
     Path("checkpoints").mkdir(exist_ok=True)
-    ckpt_path=f"checkpoints/best_seed{seed}.pt"
+    ckpt_path=f"checkpoints/{variant}_seed{seed}.pt"
 
     wandb.init(
         project="transformer-multi30k",
+        group=f"{variant}-ln",
+        name=f"{variant}-ln-seed{seed}",
         config={
             "d_model": d_model,
             "num_heads": 8,
@@ -65,7 +68,8 @@ def train(seed):
             "batch_size": 64,
             "warmup_steps": 4000,
             "label_smoothing": 0.1,
-            "seed":seed
+            "seed":seed,
+            "norm_first": not post_ln
         }
     )
 
@@ -80,7 +84,7 @@ def train(seed):
 
     model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
                         tgt_vocab_size=de_tok.get_vocab_size(),
-                        d_model=d_model, pad_id=pad_id).to(device)
+                        d_model=d_model, pad_id=pad_id, norm_first=not post_ln).to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1.0, betas=(0.9, 0.98), eps=1e-9)
@@ -124,7 +128,7 @@ def train(seed):
             best_val=val_loss
             torch.save(model.state_dict(),ckpt_path)
 
-    artifact = wandb.Artifact(f"transformer-seed{seed}", type="model")
+    artifact = wandb.Artifact(f"transformer-{variant}-seed{seed}", type="model")
     artifact.add_file(ckpt_path)
     wandb.log_artifact(artifact)
     wandb.summary["best_val_loss"]=best_val
@@ -135,4 +139,6 @@ def train(seed):
 if __name__ == "__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("--seed",type=int,default=0)
-    train(parser.parse_args().seed)
+    parser.add_argument("--post-ln",action="store_true")
+    args=parser.parse_args()
+    train(args.seed,args.post_ln)

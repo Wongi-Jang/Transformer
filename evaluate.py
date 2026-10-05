@@ -2,7 +2,7 @@ import torch
 from tokenizers import Tokenizer
 from datasets import load_dataset
 import sacrebleu
-
+import argparse
 from src.model.transformer import Transformer
 
 
@@ -43,6 +43,10 @@ def evaluate_bleu(model, test_split, src_tok, tgt_tok, device, src_lang="en", tg
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ckpt", required=True)
+    parser.add_argument("--post-ln", action="store_true")
+    args = parser.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     en_tok = Tokenizer.from_file("tokenizers/en.json")
@@ -51,9 +55,9 @@ def main():
 
     model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
                         tgt_vocab_size=de_tok.get_vocab_size(),
-                        d_model=512,pad_id=de_tok.token_to_id("<pad>")).to(device)
+                        d_model=512,pad_id=de_tok.token_to_id("<pad>"),norm_first=not args.post_ln).to(device)
     model.load_state_dict(torch.load(
-        "checkpoints/best_seed0.pt", map_location=device))
+        args.ckpt, map_location=device))
 
     score, hyps, refs = evaluate_bleu(
         model, ds["test"], en_tok, de_tok, device)
