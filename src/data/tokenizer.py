@@ -1,5 +1,5 @@
 from pathlib import Path
-from tokenizers import Tokenizer, models, trainers, pre_tokenizers, processors
+from tokenizers import Tokenizer, models, trainers, pre_tokenizers, processors,decoders
 from datasets import load_dataset
 
 SPECIAL_TOKENS = ["<pad>", "<sos>", "<eos>", "<unk>"]
@@ -7,7 +7,8 @@ SPECIAL_TOKENS = ["<pad>", "<sos>", "<eos>", "<unk>"]
 
 def train_tokenizer(texts, vocab_size=8000, save_path=None):
     tokenizer = Tokenizer(models.BPE(unk_token="<unk>"))
-    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    tokenizer.pre_tokenizer = pre_tokenizers.Metaspace()
+    tokenizer.decoder=decoders.Metaspace()
     trainer = trainers.BpeTrainer(
         vocab_size=vocab_size, special_tokens=SPECIAL_TOKENS)
     tokenizer.train_from_iterator(texts, trainer=trainer)
