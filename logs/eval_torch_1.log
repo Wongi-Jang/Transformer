@@ -1,0 +1,21 @@
+BLEU score: 18.44
+Source: A man in an orange hat starring at something.
+Reference: Ein Mann mit einem orangefarbenen Hut, der etwas anstarrt.
+Hypothesis: Ein Mann mit einem orangefarbenen Hut betrachtet etwas.
+
+Source: A Boston Terrier is running on lush green grass in front of a white fence.
+Reference: Ein Boston Terrier läuft über saftig-grünes Gras vor einem weißen Zaun.
+Hypothesis: Ein weiß gekleideter Läufer rennt.
+
+Source: A girl in karate uniform breaking a stick with a front kick.
+Reference: Ein Mädchen in einem Karateanzug bricht ein Brett mit einem Tritt.
+Hypothesis: Ein Mädchen in einem Karateanzug führt einen kleinen Jungen vor einem Karate.
+
+Source: Five people wearing winter jackets and helmets stand in the snow, with snowmobiles in the background.
+Reference: Fünf Leute in Winterjacken und mit Helmen stehen im Schnee mit Schneemobilen im Hintergrund.
+Hypothesis: Fünf Personen mit Hüten stehen im Hintergrund sind viele Menschen zu sehen.
+
+Source: People are fixing the roof of a house.
+Reference: Leute Reparieren das Dach eines Hauses.
+Hypothesis: Leute fahren ein Dach aus dem Dach eines Hauses, das Haus.
+
