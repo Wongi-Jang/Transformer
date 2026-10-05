@@ -4,6 +4,7 @@ from datasets import load_dataset
 import sacrebleu
 import argparse
 from src.model.transformer import Transformer
+from src.model.torch_baseline import TorchTransformer
 
 
 def greedy_decode(model, src, max_len, device,sos_id,eos_id):
@@ -46,6 +47,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", required=True)
     parser.add_argument("--post-ln", action="store_true")
+    parser.add_argument("--baseline", action="store_true")
     args = parser.parse_args()
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -53,9 +55,14 @@ def main():
     de_tok = Tokenizer.from_file("tokenizers/de.json")
     ds = load_dataset("bentrevett/multi30k")
 
-    model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
-                        tgt_vocab_size=de_tok.get_vocab_size(),
-                        d_model=512,pad_id=de_tok.token_to_id("<pad>"),norm_first=not args.post_ln).to(device)
+    if args.baseline:
+        model = TorchTransformer(src_vocab_size=en_tok.get_vocab_size(),
+                                 tgt_vocab_size=de_tok.get_vocab_size(),
+                                 d_model=512,pad_id=de_tok.token_to_id("<pad>")).to(device)
+    else:
+        model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
+                            tgt_vocab_size=de_tok.get_vocab_size(),
+                            d_model=512,pad_id=de_tok.token_to_id("<pad>"),norm_first=not args.post_ln).to(device)
     model.load_state_dict(torch.load(
         args.ckpt, map_location=device))
 

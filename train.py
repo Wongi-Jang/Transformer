@@ -12,6 +12,7 @@ from functools import partial
 from src.data.dataset import TranslationDataset, collate_fn
 from src.data.tokenizer import build_tokenizers
 from src.model.transformer import Transformer
+from src.model.torch_baseline import TorchTransformer
 
 import wandb
 
@@ -46,13 +47,13 @@ def run_epoch_val(model, loader, criterion, pad_id, device):
     return total_loss /total_tokens
 
 
-def train(seed, post_ln):
+def train(seed, post_ln, baseline):
     random.seed(seed)
     torch.manual_seed(seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     d_model = 512
 
-    variant="post" if post_ln else "pre"
+    variant="torch" if baseline else ("post" if post_ln else "pre")
     Path("checkpoints").mkdir(exist_ok=True)
     ckpt_path=f"checkpoints/{variant}_seed{seed}.pt"
 
@@ -82,9 +83,15 @@ def train(seed, post_ln):
                               shuffle=True, collate_fn=collate, generator=torch.Generator().manual_seed(seed))
     val_loader=DataLoader(TranslationDataset(ds["validation"],en_tok,de_tok),batch_size=64,collate_fn=collate)
 
-    model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
-                        tgt_vocab_size=de_tok.get_vocab_size(),
-                        d_model=d_model, pad_id=pad_id, norm_first=not post_ln).to(device)
+    if baseline:
+        model = TorchTransformer(src_vocab_size=en_tok.get_vocab_size(),
+                                 tgt_vocab_size=de_tok.get_vocab_size(),
+                                 d_model=d_model, pad_id=pad_id).to(device)
+    else:
+        model = Transformer(src_vocab_size=en_tok.get_vocab_size(),
+                            tgt_vocab_size=de_tok.get_vocab_size(),
+                            d_model=d_model, pad_id=pad_id, norm_first=not post_ln).to(device)
+    wandb.summary["params"] = sum(p.numel() for p in model.parameters())
 
     optimizer = torch.optim.Adam(
         model.parameters(), lr=1.0, betas=(0.9, 0.98), eps=1e-9)
@@ -140,5 +147,6 @@ if __name__ == "__main__":
     parser=argparse.ArgumentParser()
     parser.add_argument("--seed",type=int,default=0)
     parser.add_argument("--post-ln",action="store_true")
+    parser.add_argument("--baseline",action="store_true")
     args=parser.parse_args()
-    train(args.seed,args.post_ln)
+    train(args.seed,args.post_ln,args.baseline)
